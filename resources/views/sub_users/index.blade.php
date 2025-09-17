@@ -53,12 +53,12 @@
                             </form>
 
                             <!-- Simulate Payment Form -->
-                            <form action="{{ route('sub-users.simulatePayment') }}" method="POST" class="d-inline">
+                            <form action="{{ route('sub-users.pay') }}" method="POST" class="d-inline">
                                 @csrf
                                 <input type="hidden" name="subuser_id" value="{{ $subUser['id'] }}">
                                 @php
-                                    $idempotencyKey = \App\Helpers\ResellerHelper::generateIdempotencyKey();
-                                    $signature = \App\Helpers\ResellerHelper::generateSignature($subUser['id'], $idempotencyKey);
+                                    $idempotencyKey = App\Services\ResellerApiService::generateIdempotencyKey();
+                                    $signature = App\Services\ResellerApiService::generateSignature($subUser['id'], $idempotencyKey);
                                 @endphp
                                 <input type="hidden" name="idempotency_key" value="{{ $idempotencyKey }}">
                                 <input type="hidden" name="signature" value="{{ $signature }}">

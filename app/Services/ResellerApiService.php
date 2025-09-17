@@ -2,89 +2,65 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
-
 class ResellerApiService
 {
-    protected string $baseUrl;
-    protected string $token;
-
-    public function __construct()
-    {
-        $this->baseUrl = config('services.dataimpulse.baseUrl');
-        $this->token = config('services.dataimpulse.token');
-    }
-
-    protected function headers(): array
-    {
-        return [
-            'Authorization' => 'Bearer ' . $this->token,
-            'Accept' => 'application/json',
-        ];
-    }
+    public function __construct(protected ResellerApiClient $client) {}
 
     public function listSubUsers(): array
     {
-        $response = Http::withHeaders($this->headers())
-            ->get($this->baseUrl . '/sub-user/list');
-
-        return $response->json() ?? [];
+        return $this->client->get('/sub-user/list')->json() ?? [];
     }
 
     public function getSubUser(int $id): array
     {
-        $response = Http::withHeaders($this->headers())
-            ->get($this->baseUrl . "/sub-user/get/?subuser_id={$id}");
-
-        return $response->json() ?? [];
+        return $this->client->get('/sub-user/get', ['subuser_id' => $id])->json() ?? [];
     }
 
     public function createSubUser(array $data): array
     {
-        $response = Http::withHeaders($this->headers())
-            ->post($this->baseUrl . '/sub-user/create', $data);
-
-        return $response->json() ?? [];
+        return $this->client->post('/sub-user/create', $data)->json() ?? [];
     }
 
     public function updateSubUser(array $data): array
     {
-        $response = Http::withHeaders($this->headers())
-            ->post($this->baseUrl . "/sub-user/update", $data);
-
-        return $response->json() ?? [];
+        return $this->client->post('/sub-user/update', $data)->json() ?? [];
     }
 
     public function deleteSubUser(array $data): bool
     {
-        $response = Http::withHeaders($this->headers())
-            ->post($this->baseUrl . "/sub-user/delete", $data);
-
-        return $response->successful();
+        return $this->client->post('/sub-user/delete', $data)->successful();
     }
 
     public function getStatistics(int $subUserId, ?string $period): array
     {
-        $response = Http::withHeaders($this->headers())
-            ->get(
-                $this->baseUrl . sprintf(
-                    '/sub-user/usage-stat/get?subuser_id=%s&period=%s',
-                    $subUserId,
-                    $period
-                )
-            );
-
-        return $response->json() ?? [];
+        return $this->client->get('/sub-user/usage-stat/get', [
+            'subuser_id' => $subUserId,
+            'period' => $period,
+        ])->json() ?? [];
     }
 
-    public function simulatePayment(int $subUserId, int $traffic): array
+    public function pay(int $subUserId, int $traffic): array
     {
-        $response = Http::withHeaders($this->headers())
-            ->post($this->baseUrl . "/sub-user/balance/add", [
-                'subuser_id' => $subUserId,
-                'traffic'    => $traffic,
-            ]);
+        return $this->client->post('/sub-user/balance/add', [
+            'subuser_id' => $subUserId,
+            'traffic'    => $traffic,
+        ])->json() ?? [];
+    }
 
-        return $response->json() ?? [];
+    public static function generateIdempotencyKey(): string
+    {
+        return bin2hex(random_bytes(16));
+    }
+
+    public static function generateSignature(int $subUserId, string $idempotencyKey): string
+    {
+        $payload = json_encode([
+            'subuser_id' => $subUserId,
+            'idempotency_key' => $idempotencyKey,
+        ]);
+
+        $secret = config('services.dataimpulse.webhook_secret');
+
+        return hash_hmac('sha256', $payload, $secret);
     }
 }
