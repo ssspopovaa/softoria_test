@@ -3,8 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\PeriodEnum;
-use App\Helpers\ResellerHelper;
-use App\Http\Requests\SimulatePaymentRequest;
+use App\Http\Requests\PaymentRequest;
 use App\Http\Requests\SubUserDeleteRequest;
 use App\Http\Requests\SubUserStoreRequest;
 use App\Http\Requests\SubUserUpdateRequest;
@@ -14,11 +13,8 @@ use Illuminate\Support\Facades\Cache;
 
 class SubUserController extends Controller
 {
-    protected ResellerApiService $service;
-
-    public function __construct(ResellerApiService $service)
+    public function __construct(protected readonly ResellerApiService $service)
     {
-        $this->service = $service;
     }
 
     public function index()
@@ -75,10 +71,10 @@ class SubUserController extends Controller
         return view('sub_users.stat', compact('stats', 'periods', 'id', 'period'));
     }
 
-    public function simulatePayment(SimulatePaymentRequest $request)
+    public function pay(PaymentRequest $request)
     {
         $data = $request->validated();
-        $expectedSignature = ResellerHelper::generateSignature($data['subuser_id'], $data['idempotency_key']);
+        $expectedSignature = ResellerApiService::generateSignature($data['subuser_id'], $data['idempotency_key']);
 
         if (!hash_equals($expectedSignature, $data['signature'])) {
             return redirect()->back()->with('error', 'Invalid signature');
@@ -88,10 +84,10 @@ class SubUserController extends Controller
             return redirect()->back()->with('status', 'Payment already processed');
         }
 
-        $this->service->simulatePayment($data['subuser_id'], $data['traffic']);
+        $this->service->pay($data['subuser_id'], $data['traffic']);
 
         Cache::put('payment_' . $data['idempotency_key'], true, now()->addHours(1));
 
-        return redirect()->back()->with('status', 'Payment simulated successfully!');
+        return redirect()->back()->with('status', 'Payment processed successfully!');
     }
 }
