@@ -1,37 +1,38 @@
+@php use App\Enums\PeriodEnum; @endphp
 @extends('layouts.app')
 
 @section('content')
     <div class="container">
-        <h1 class="mb-4">Statistics for SubUser #{{ $id }}</h1>
+        <h1 class="mb-4">{{ __('Statistics for SubUser #:id', ['id' => $id]) }}</h1>
 
         <form method="GET" action="{{ route('sub-users.stat', ['id' => $id]) }}" class="mb-4 row g-2 align-items-center">
             <div class="col-auto">
                 <select name="period" class="form-select">
-                    @foreach($periods as $option)
+                    @foreach(PeriodEnum::options() as $option)
                         <option value="{{ $option['value'] }}"
                             {{ $period == $option['value'] ? 'selected' : '' }}>
-                            {{ $option['label'] }}
+                            {{ __($option['label']) }}
                         </option>
                     @endforeach
                 </select>
             </div>
             <div class="col-auto">
-                <button type="submit" class="btn btn-primary">Show</button>
+                <button type="submit" class="btn btn-primary">{{ __('Show') }}</button>
             </div>
         </form>
 
         <div class="card">
             <div class="card-body">
-                <p><strong>Period:</strong> {{ ucfirst(request('period', $period)) }}</p>
+                <p><strong>{{ __('Period:') }}</strong> {{ ucfirst(request('period', $period)) }}</p>
 
                 <div class="table-responsive">
                     <table class="table table-bordered mt-3">
                         <thead class="table-light">
                         <tr>
-                            <th>Traffic</th>
-                            <th>Extra traffic</th>
-                            <th>Request</th>
-                            <th>Date</th>
+                            <th>{{ __('Traffic') }}</th>
+                            <th>{{ __('Extra traffic') }}</th>
+                            <th>{{ __('Request') }}</th>
+                            <th>{{ __('Date') }}</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -46,7 +47,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="text-center">No data available for this period.</td>
+                                <td colspan="4" class="text-center">{{ __('No data available for this period.') }}</td>
                             </tr>
                         @endforelse
                         </tbody>

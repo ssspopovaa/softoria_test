@@ -2,25 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\PeriodEnum;
+use App\DTO\PaymentDTO;
 use App\Http\Requests\PaymentRequest;
-use App\Http\Requests\SubUserDeleteRequest;
 use App\Http\Requests\SubUserStoreRequest;
 use App\Http\Requests\SubUserUpdateRequest;
-use App\Services\ResellerApiService;
+use App\Http\Requests\SubUserDeleteRequest;
+use App\Services\SubUserService;
+use App\Services\PaymentService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 
 class SubUserController extends Controller
 {
-    public function __construct(protected readonly ResellerApiService $service)
-    {
-    }
+    public function __construct(
+        protected SubUserService $subUserService,
+        protected PaymentService $paymentService
+    ) {}
 
     public function index()
     {
-        $subUsers = $this->service->listSubUsers()['subusers'] ?? [];
-
+        $subUsers = $this->subUserService->list();
         return view('sub_users.index', compact('subUsers'));
     }
 
@@ -31,63 +31,44 @@ class SubUserController extends Controller
 
     public function store(SubUserStoreRequest $request)
     {
-        $this->service->createSubUser($request->validated());
-
+        $this->subUserService->create($request->validated());
         return redirect()->route('sub-users.index');
     }
 
     public function edit(int $id)
     {
-        $subUser = $this->service->getSubUser($id);
-
+        $subUser = $this->subUserService->get($id);
         return view('sub_users.edit', compact('subUser'));
     }
 
     public function update(SubUserUpdateRequest $request)
     {
-        $this->service->updateSubUser($request->validated());
-
+        $this->subUserService->update($request->validated());
         return redirect()->route('sub-users.index');
     }
 
     public function destroy(SubUserDeleteRequest $request)
     {
-        $this->service->deleteSubUser($request->validated());
-
+        $this->subUserService->delete($request->validated());
         return redirect()->route('sub-users.index');
     }
 
-    public function stat(Request $request, $id)
+    public function stat(Request $request, int $id)
     {
-        $period = $request->query('period', PeriodEnum::DAY->value);
-
-        $stats = $this->service->getStatistics(
-            $id,
-            $period
-        );
-
-        $periods = PeriodEnum::options();
-
-        return view('sub_users.stat', compact('stats', 'periods', 'id', 'period'));
+        $period = $request->query('period', 'day');
+        $stats  = $this->subUserService->statistics($id, $period);
+        return view('sub_users.stat', compact('stats', 'id', 'period'));
     }
 
     public function pay(PaymentRequest $request)
     {
-        $data = $request->validated();
-        $expectedSignature = ResellerApiService::generateSignature($data['subuser_id'], $data['idempotency_key']);
+        $dto = new PaymentDTO(
+            subUserId: $request->input('subuser_id'),
+            traffic: $request->input('traffic'),
+            idempotencyKey: $request->input('idempotency_key'),
+            signature: $request->input('signature')
+        );
 
-        if (!hash_equals($expectedSignature, $data['signature'])) {
-            return redirect()->back()->with('error', 'Invalid signature');
-        }
-
-        if (Cache::has('payment_' . $data['idempotency_key'])) {
-            return redirect()->back()->with('status', 'Payment already processed');
-        }
-
-        $this->service->pay($data['subuser_id'], $data['traffic']);
-
-        Cache::put('payment_' . $data['idempotency_key'], true, now()->addHours(1));
-
-        return redirect()->back()->with('status', 'Payment processed successfully!');
+        return redirect()->back()->with('status', $this->paymentService->process($dto));
     }
 }

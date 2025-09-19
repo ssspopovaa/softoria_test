@@ -1,10 +1,14 @@
 <?php
 
-namespace App\Services;
+namespace App\Repositories;
 
-class ResellerApiService
+use App\Contracts\ResellerApiClientInterface;
+
+class ResellerApiRepository
 {
-    public function __construct(protected ResellerApiClient $client) {}
+    public function __construct(
+        protected ResellerApiClientInterface $client
+    ) {}
 
     public function listSubUsers(): array
     {
@@ -35,7 +39,7 @@ class ResellerApiService
     {
         return $this->client->get('/sub-user/usage-stat/get', [
             'subuser_id' => $subUserId,
-            'period' => $period,
+            'period'     => $period,
         ])->json() ?? [];
     }
 
@@ -45,22 +49,5 @@ class ResellerApiService
             'subuser_id' => $subUserId,
             'traffic'    => $traffic,
         ])->json() ?? [];
-    }
-
-    public static function generateIdempotencyKey(): string
-    {
-        return bin2hex(random_bytes(16));
-    }
-
-    public static function generateSignature(int $subUserId, string $idempotencyKey): string
-    {
-        $payload = json_encode([
-            'subuser_id' => $subUserId,
-            'idempotency_key' => $idempotencyKey,
-        ]);
-
-        $secret = config('services.dataimpulse.webhook_secret');
-
-        return hash_hmac('sha256', $payload, $secret);
     }
 }
