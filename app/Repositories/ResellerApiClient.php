@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Services;
+namespace App\Repositories;
 
+use App\Contracts\ResellerApiClientInterface;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
-class ResellerApiClient
+class ResellerApiClient implements ResellerApiClientInterface
 {
     protected string $baseUrl;
     protected string $token;
@@ -13,14 +14,14 @@ class ResellerApiClient
     public function __construct(string $baseUrl, string $token)
     {
         $this->baseUrl = $baseUrl;
-        $this->token = $token;
+        $this->token   = $token;
     }
 
     protected function headers(): array
     {
         return [
             'Authorization' => 'Bearer ' . $this->token,
-            'Accept' => 'application/json',
+            'Accept'        => 'application/json',
         ];
     }
 
